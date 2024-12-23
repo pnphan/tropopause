@@ -3,17 +3,18 @@ import requests
 from bs4 import BeautifulSoup
 import zipfile
 from io import BytesIO
+import time
 
 # Directory URL
-BASE_URL = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/"
+BASE_URL = "https://web.archive.org/web/20241127195835/https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/"#"https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/"
 
 # Directory to save downloaded files
-SAVE_DIR = "downloaded_txt_files"
+SAVE_DIR = "/media/peter/easystore/radiosonde-data-2" #"downloaded_txt_files"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 def get_zip_file_links(base_url):
     """Fetch all .zip file links from the given URL."""
-    response = requests.get(base_url)
+    response = requests.get(base_url, verify=False)
     if response.status_code != 200:
         raise Exception(f"Failed to access {base_url}. HTTP Status Code: {response.status_code}")
     
@@ -48,6 +49,7 @@ def main():
         
         for link in zip_links:
             download_and_extract_zip(link, SAVE_DIR)
+            time.sleep(6)
         
         print("All .txt files extracted successfully.")
     except Exception as e:

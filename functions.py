@@ -2,31 +2,44 @@ import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
-def get_available_days(year, month, filepath='PFM00059981-data.txt'):
+## DATA CUTOFF DATE 2024-12-22 19:26	
+
+def get_station_list(filepath='igra2-station-list.txt'):
+    stations = []
+    with open(filepath, 'r') as file:
+        for line in file:
+            stations.append(line[:11])
+    return stations
+
+def get_years_and_months(filepath='PFM00059981-data.txt'):
     """
-    Reads the IGRA file and extracts days where data is available for a specific year and month.
+    Extracts available years and their corresponding months from the IGRA file.
 
     :param filepath: Path to the IGRA sounding data file.
-    :param year: The year to filter the data.
-    :param month: The month to filter the data.
-    :return: A list of days with data available.
+    :return: A dictionary where keys are years and values are lists of available months.
     """
-    available_days = set()
+    year_month_data = {}
 
     with open(filepath, 'r') as file:
         for line in file:
             if line.startswith('#'):  # Header line
                 try:
-                    line_year = int(line[13:17])  # Extract year (columns 14-17, zero-indexed)
-                    line_month = int(line[18:20])  # Extract month (columns 19-20, zero-indexed)
-                    line_day = int(line[21:23])  # Extract day (columns 22-23, zero-indexed)
+                    # Extract year and month
+                    year = int(line[13:17])  # Year (columns 14-17)
+                    month = int(line[18:20])  # Month (columns 19-20)
 
-                    if line_year == year and line_month == month:
-                        available_days.add(line_day)
+                    # Add the month to the corresponding year
+                    if year not in year_month_data:
+                        year_month_data[year] = set()  # Use a set to avoid duplicate months
+                    year_month_data[year].add(month)
                 except ValueError:
                     continue
 
-    return sorted(available_days)
+    # Convert sets to sorted lists for consistency
+    for year in year_month_data:
+        year_month_data[year] = sorted(year_month_data[year])
+
+    return year_month_data
 
 
 def get_available_days_and_times(year, month, filepath='PFM00059981-data.txt'):
@@ -61,6 +74,39 @@ def get_available_days_and_times(year, month, filepath='PFM00059981-data.txt'):
         available_data[day] = sorted(available_data[day])
 
     return available_data
+
+
+def get_years(filepath='PFM00059981-data.txt'):
+    return list(get_years_and_months(filepath).keys())
+def get_months(year, filepath='PFM00059981-data.txt'):
+    return get_years_and_months(filepath)[year]
+def get_days(year, month, filepath='PFM00059981-data.txt'):
+    """
+    Reads the IGRA file and extracts days where data is available for a specific year and month.
+
+    :param filepath: Path to the IGRA sounding data file.
+    :param year: The year to filter the data.
+    :param month: The month to filter the data.
+    :return: A list of days with data available.
+    """
+    available_days = set()
+
+    with open(filepath, 'r') as file:
+        for line in file:
+            if line.startswith('#'):  # Header line
+                try:
+                    line_year = int(line[13:17])  # Extract year (columns 14-17, zero-indexed)
+                    line_month = int(line[18:20])  # Extract month (columns 19-20, zero-indexed)
+                    line_day = int(line[21:23])  # Extract day (columns 22-23, zero-indexed)
+
+                    if line_year == year and line_month == month:
+                        available_days.add(line_day)
+                except ValueError:
+                    continue
+
+    return sorted(available_days)
+def get_times(year, month, day, filepath='PFM00059981-data.txt'):
+    return get_available_days_and_times(year, month, filepath)[day]
 
 
 def get_daywise_data(year, month, filepath='PFM00059981-data.txt'):
@@ -178,9 +224,8 @@ def detect_tropopause(gph, lapse):
 
 
 
-gph = get_daywise_data(2024, 7)[(31,0)]['gph']
-temp = get_daywise_data(2024, 7)[(31,0)]['temp']
-gph, temp = interpolate_to_points(gph, temp, kind='linear', step=200)
-gph, lapse, temp = lapse_rate(gph, temp)
-
-print(detect_tropopause(gph, lapse))
+# gph = get_daywise_data(2024, 7)[(31,0)]['gph']
+# temp = get_daywise_data(2024, 7)[(31,0)]['temp']
+# gph, temp = interpolate_to_points(gph, temp, kind='linear', step=200)
+# gph, lapse, temp = lapse_rate(gph, temp)
+# tropopause = detect_tropopause(gph, lapse)
