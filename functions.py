@@ -219,9 +219,56 @@ def detect_tropopause(gph, lapse):
                 continue 
             else:
                 return gph[i]
+            
+# def plot_locations(id_list, filepath='igra2-station-list.txt'):
 
+import matplotlib.pyplot as plt
+import pandas as pd
 
+def plot_station_locations(station_ids=['PFM00059981'], station_file='igra2-station-list.txt'):
+    """
+    Plots the locations of the given station IDs using the IGRA station list file.
+    
+    Args:
+    - station_ids (list): List of station IDs to plot.
+    - station_file (str): Path to the IGRA station list file.
+    
+    Returns:
+    - None: Displays a plot of the station locations.
+    """
+    # Define column names and widths based on the format file
+    column_names = ['ID', 'LATITUDE', 'LONGITUDE', 'ELEVATION', 'STATE', 'NAME', 'FSTYEAR', 'LSTYEAR', 'NOBS']
+    column_widths = [11, 8, 8, 6, 2, 30, 4, 4, 6]
+    
+    # Read the station list file
+    stations = pd.read_fwf(station_file, widths=column_widths, names=column_names, dtype=str)
+    
+    # Convert latitude and longitude to numeric
+    stations['LATITUDE'] = pd.to_numeric(stations['LATITUDE'], errors='coerce')
+    stations['LONGITUDE'] = pd.to_numeric(stations['LONGITUDE'], errors='coerce')
+    
+    # Filter by the provided station IDs
+    selected_stations = stations[stations['ID'].isin(station_ids)]
+    
+    # Identify and print stations with missing location data
+    missing_locations = selected_stations[selected_stations[['LATITUDE', 'LONGITUDE']].isnull().any(axis=1)]
+    for missing_id in missing_locations['ID']:
+        print(f"Missing location for station ID: {missing_id}")
+    
+    # Filter stations with valid locations
+    valid_stations = selected_stations.dropna(subset=['LATITUDE', 'LONGITUDE'])
+    
+    # Plot the locations
+    plt.figure(figsize=(10, 6))
+    plt.scatter(valid_stations['LONGITUDE'], valid_stations['LATITUDE'], c='blue', alpha=0.7, label='Station')
+    plt.title('Station Locations')
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 
+plot_station_locations()
 
 
 # gph = get_daywise_data(2024, 7)[(31,0)]['gph']
