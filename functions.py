@@ -1,6 +1,10 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+from geopy.distance import geodesic
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+import matplotlib.ticker as mticker
 
 ## DATA CUTOFF DATE 2024-12-22 19:26	
 
@@ -222,55 +226,169 @@ def detect_tropopause(gph, lapse):
             
 # def plot_locations(id_list, filepath='igra2-station-list.txt'):
 
-import matplotlib.pyplot as plt
-import pandas as pd
+# def plot_all_stations(station_data='igra2-station-list.txt'):
+#     stations = open(station_data, "r").read().split("\n")[:-101]
+#     lat = [float(i[11:20].replace(" ", "")) for i in stations]
+#     lon = [float(i[20:30].replace(" ", "")) for i in stations]
 
-def plot_station_locations(station_ids=['PFM00059981'], station_file='igra2-station-list.txt'):
-    """
-    Plots the locations of the given station IDs using the IGRA station list file.
+#     plt.figure(figsize=(10, 5)) 
+#     ax = plt.axes(projection=ccrs.PlateCarree())
+#     ax.stock_img()  # Adds a basic map background
+#     plt.scatter(lon, lat, color="red", transform=ccrs.PlateCarree(), marker='.', s=1)
+#     plt.title("Latitude-Longitude Points on Map")
+#     plt.show()
+
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+
+def plot_all_stations(station_data='igra2-station-list.txt'):
+    # Read station data and extract latitude and longitude
+    with open(station_data, "r") as f:
+        stations = f.read().splitlines()[:-101]  # Remove trailing meta-info lines
     
-    Args:
-    - station_ids (list): List of station IDs to plot.
-    - station_file (str): Path to the IGRA station list file.
+    lat = []
+    lon = []
+    for station in stations:
+        try:
+            # Extract latitude and longitude
+            latitude = float(station[12:20].strip())
+            longitude = float(station[21:30].strip())
+            
+            # Ignore stations with invalid lat/lon (set to missing values in the file)
+            if latitude == -98.8888 or longitude == -998.8888:
+                continue
+            
+            lat.append(latitude)
+            lon.append(longitude)
+        except ValueError:
+            print(f"Skipping invalid line: {station}")
     
-    Returns:
-    - None: Displays a plot of the station locations.
-    """
-    # Define column names and widths based on the format file
-    column_names = ['ID', 'LATITUDE', 'LONGITUDE', 'ELEVATION', 'STATE', 'NAME', 'FSTYEAR', 'LSTYEAR', 'NOBS']
-    column_widths = [11, 8, 8, 6, 2, 30, 4, 4, 6]
+    # Plotting
+    plt.figure(figsize=(12, 6)) 
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    #ax.stock_img()  # Adds a basic map background
+    ax.coastlines()  # Adds coastlines for better context
+    #ax.add_feature(cfeature.BORDERS, linestyle=':')  # Adds country borders
+
+    ax.add_feature(cfeature.LAND, color='white')
+    ax.add_feature(cfeature.OCEAN, color='white')
+    ax.add_feature(cfeature.COASTLINE, edgecolor='black')
+    #ax.add_feature(cfeature.BORDERS, edgecolor='gray', linestyle=':')
+    #ax.add_feature(cfeature.LAKES, color='white', edgecolor='gray')
+    #ax.add_feature(cfeature.RIVERS, color='gray')
     
-    # Read the station list file
-    stations = pd.read_fwf(station_file, widths=column_widths, names=column_names, dtype=str)
+    # Add gridlines for lat/lon
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0, linestyle='--')
+    gl.top_labels = False  # Disable labels on the top axis
+    gl.right_labels = False  # Disable labels on the right axis
+    gl.xlocator = mticker.FixedLocator(range(-180, 181, 60))  # Longitude ticks every 10 degrees
+    gl.ylocator = mticker.FixedLocator(range(-90, 91, 30))    # Latitude ticks every 10 degrees
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    gl.xlabel_style = {'size': 10, 'color': 'gray'}
+    gl.ylabel_style = {'size': 10, 'color': 'gray'}
     
-    # Convert latitude and longitude to numeric
-    stations['LATITUDE'] = pd.to_numeric(stations['LATITUDE'], errors='coerce')
-    stations['LONGITUDE'] = pd.to_numeric(stations['LONGITUDE'], errors='coerce')
+    # Scatter plot of station locations
+    plt.scatter(lon, lat, color="red", transform=ccrs.PlateCarree(), marker='.', s=2, label='Stations')
     
-    # Filter by the provided station IDs
-    selected_stations = stations[stations['ID'].isin(station_ids)]
-    
-    # Identify and print stations with missing location data
-    missing_locations = selected_stations[selected_stations[['LATITUDE', 'LONGITUDE']].isnull().any(axis=1)]
-    for missing_id in missing_locations['ID']:
-        print(f"Missing location for station ID: {missing_id}")
-    
-    # Filter stations with valid locations
-    valid_stations = selected_stations.dropna(subset=['LATITUDE', 'LONGITUDE'])
-    
-    # Plot the locations
-    plt.figure(figsize=(10, 6))
-    plt.scatter(valid_stations['LONGITUDE'], valid_stations['LATITUDE'], c='blue', alpha=0.7, label='Station')
-    plt.title('Station Locations')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.grid(True)
-    plt.legend()
+    # Title and labels
+    plt.title("Station Locations", fontsize=14)
+    plt.legend(loc="lower left")
     plt.show()
 
-plot_station_locations()
 
+def plot_stations(station_list=['AEM00041217', 'ACM00078861'], station_data='igra2-station-list.txt'):
+    with open(station_data, "r") as f:
+        stations = f.read().splitlines()[:-101]  # Remove trailing meta-info lines
+    
+    lat = []
+    lon = []
 
+    target_stations = []
+    for i in station_list:
+        for j in stations:
+            if i == j[:11]:
+                target_stations.append(j)
+
+    print(len(target_stations))
+    for station in target_stations:
+        try:
+            # Extract latitude and longitude
+            latitude = float(station[12:20].strip())
+            longitude = float(station[21:30].strip())
+            
+            # Ignore stations with invalid lat/lon (set to missing values in the file)
+            if latitude == -98.8888 or longitude == -998.8888:
+                print(station[:11])
+                continue
+            
+            lat.append(latitude)
+            lon.append(longitude)
+        except ValueError:
+            print(f"Skipping invalid line: {station}")
+    
+    # Plotting
+    plt.figure(figsize=(12, 6)) 
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    #ax.stock_img()  # Adds a basic map background
+    ax.coastlines()  # Adds coastlines for better context
+    #ax.add_feature(cfeature.BORDERS, linestyle=':')  # Adds country borders
+
+    ax.add_feature(cfeature.LAND, color='white')
+    ax.add_feature(cfeature.OCEAN, color='white')
+    ax.add_feature(cfeature.COASTLINE, edgecolor='black')
+    #ax.add_feature(cfeature.BORDERS, edgecolor='gray', linestyle=':')
+    #ax.add_feature(cfeature.LAKES, color='white', edgecolor='gray')
+    #ax.add_feature(cfeature.RIVERS, color='gray')
+    
+    # Add gridlines for lat/lon
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0, linestyle='--')
+    gl.top_labels = False  # Disable labels on the top axis
+    gl.right_labels = False  # Disable labels on the right axis
+    gl.xlocator = mticker.FixedLocator(range(-180, 181, 60))  # Longitude ticks every 10 degrees
+    gl.ylocator = mticker.FixedLocator(range(-90, 91, 30))    # Latitude ticks every 10 degrees
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    gl.xlabel_style = {'size': 10, 'color': 'gray'}
+    gl.ylabel_style = {'size': 10, 'color': 'gray'}
+    
+    # Scatter plot of station locations
+    lon.append(-180)
+    lon.append(180)
+    lat.append(90)
+    lat.append(-90)
+    plt.scatter(lon, lat, color="red", transform=ccrs.PlateCarree(), marker='o', s=20, label='Stations')
+    
+    # Title and labels
+    plt.title("Station Locations", fontsize=14)
+    plt.legend(loc="lower left")
+    plt.show()
+
+seidel2006stationlist = [
+    'ARM00087576', 'ASM00094120', 'ASM00094294', 'ASM00094610', 'ASM00094672', 
+    'ASM00094998', 'AYM00089009', 'AYM00089050', 'AYM00089532', 'AYM00089542', 
+    'AYM00089564', 'AYM00089664', 'BDM00078016', 'BPM00091517', 'BRM00082332', 
+    'BRM00083746', 'CAM00071072', 'CAM00071082', 'CAM00071801', 'CAM00071836', 
+    'CAM00071926', 'CHM00051709', 'CHM00052681', 'CIM00085442', 'CIM00085469', 
+    'CIM00085799', 'COM00080222', 'FIM00002836', 'FJM00091680', 'FMM00091334', 
+    'FPM00091938', 'FSM00061996', 'GIM00008495', 'GLM00004360', 'GMM00010868', 
+    'HKM00045004', 'ICM00004018', 'IOM00061967', 'ISM00040179', 'IVM00065578', 
+    'JAM00047401', 'JAM00047827', 'JAM00047991', 'JNM00001001', 'KEM00063741', 
+    'LYM00062010', 'MAM00067083', 'NFM00094996', 'NGM00061052', 'NZM00093844', 
+    'NZM00093986', 'POM00008508', 'PSM00091408', 'RMM00091376', 'RQM00078526', 
+    'RSM00021504', 'RSM00021965', 'RSM00023415', 'RSM00023472', 'RSM00024266', 
+    'RSM00028698', 'RSM00030230', 'RSM00032540', 'RSM00034731', 'RSM00035121', 
+    'SAM00041024', 'SFM00068588', 'SFM00068816', 'SFM00068994', 'SGM00061641', 
+    'SHM00061902', 'SHM00068906', 'SNM00048698', 'SPM00060020', 'THM00048455', 
+    'TXM00038880', 'UKM00003005', 'USM00070026', 'USM00070273', 'USM00070308', 
+    'USM00070398', 'USM00072201', 'USM00072208', 'USM00072250', 'USM00072251', 
+    'USM00072293', 'USM00072327', 'USM00072403', 'USM00072451', 'USM00072493', 
+    'USM00072520', 'USM00072645', 'USM00072694', 'USM00072712', 'USM00072747', 
+    'USM00072768', 'USM00072776', 'USM00072797', 'USM00091165', 'USM00091285'
+]
+
+plot_stations(station_list=seidel2006stationlist)
 # gph = get_daywise_data(2024, 7)[(31,0)]['gph']
 # temp = get_daywise_data(2024, 7)[(31,0)]['temp']
 # gph, temp = interpolate_to_points(gph, temp, kind='linear', step=200)
