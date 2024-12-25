@@ -5,6 +5,7 @@ import cartopy.crs as ccrs
 from geopy.distance import geodesic
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import matplotlib.ticker as mticker
+import cartopy.feature as cfeature
 
 ## DATA CUTOFF DATE 2024-12-22 19:26	
 
@@ -224,23 +225,6 @@ def detect_tropopause(gph, lapse):
             else:
                 return gph[i]
             
-# def plot_locations(id_list, filepath='igra2-station-list.txt'):
-
-# def plot_all_stations(station_data='igra2-station-list.txt'):
-#     stations = open(station_data, "r").read().split("\n")[:-101]
-#     lat = [float(i[11:20].replace(" ", "")) for i in stations]
-#     lon = [float(i[20:30].replace(" ", "")) for i in stations]
-
-#     plt.figure(figsize=(10, 5)) 
-#     ax = plt.axes(projection=ccrs.PlateCarree())
-#     ax.stock_img()  # Adds a basic map background
-#     plt.scatter(lon, lat, color="red", transform=ccrs.PlateCarree(), marker='.', s=1)
-#     plt.title("Latitude-Longitude Points on Map")
-#     plt.show()
-
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 
 def plot_all_stations(station_data='igra2-station-list.txt'):
     # Read station data and extract latitude and longitude
