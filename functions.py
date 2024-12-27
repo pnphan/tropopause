@@ -349,6 +349,124 @@ def plot_stations(station_list=['AEM00041217', 'ACM00078861'], station_data='igr
     plt.legend(loc="lower left")
     plt.show()
 
+import numpy as np
+
+def calculate_tropopause_pressure_reichler(temperature, pressure, kappa=0.286, g=9.8, R=287):
+    """
+    Calculates the tropopause pressure using the Reichler et al. algorithm.
+    
+    Parameters:
+        temperature (np.ndarray): Temperature profile (K) at pressure levels.
+        pressure (np.ndarray): Pressure profile (Pa), from surface to upper levels.
+        kappa (float): Poisson constant (default is 0.286 for dry air).
+        g (float): Acceleration due to gravity (m/s^2), default is 9.8.
+        R (float): Gas constant for dry air (J/(kg·K)), default is 287.
+    
+    Returns:
+        p_tropopause (float): Tropopause pressure (Pa).
+    """
+    # Ensure pressure is descending (surface -> top of atmosphere)
+    if not np.all(np.diff(pressure) < 0):
+        raise ValueError("Pressure levels must be in descending order.")
+
+    # Calculate half-level pressures using Eq. (3)
+    p_half = 0.5 * (pressure[:-1]**kappa + pressure[1:]**kappa)
+
+    # Calculate lapse rate at half levels using Eq. (4)
+    lapse_rate_half = (
+        (temperature[1:] - temperature[:-1]) *
+        (p_half / (pressure[1:]**kappa - pressure[:-1]**kappa)) *
+        (kappa * g / R) /
+        (temperature[:-1] + temperature[1:])
+    )
+
+    # Search for the first level where the lapse rate drops below the critical threshold
+    critical_lapse_rate = 2.0  # K/km
+    idx = np.where(lapse_rate_half < critical_lapse_rate)[0]
+
+    if len(idx) == 0:
+        # No tropopause found
+        return np.nan
+
+    # Verify mean lapse rate over the 2 km layer above meets the criteria
+    j = idx[0]
+    height_diff = np.cumsum(np.diff(pressure) * -R * (temperature[:-1] + temperature[1:]) / (2 * g * pressure[:-1]))
+    height_2km_idx = np.where(height_diff >= 2000)[0]
+    if j + len(height_2km_idx) >= len(lapse_rate_half) or np.mean(lapse_rate_half[j:j + len(height_2km_idx)]) >= critical_lapse_rate:
+        return np.nan
+
+    # Interpolate to find exact tropopause pressure using Eq. (5)
+    lapse_rate_j = lapse_rate_half[j]
+    lapse_rate_j1 = lapse_rate_half[j + 1]
+    p_tropopause = (
+        p_half[j] +
+        (p_half[j + 1] - p_half[j]) / (lapse_rate_j1 - lapse_rate_j) * (critical_lapse_rate - lapse_rate_j)
+    )
+
+    # Restrict results to reasonable range (550 hPa to 75 hPa)
+    if p_tropopause < 75000 or p_tropopause > 550000:
+        return np.nan
+
+    return p_tropopause
+
+
+def reichler_tropopause(station, year, month, day, time):
+    filepath = station + '-data.txt'
+    years = get_years(filepath)
+    if year not in years:
+        return 'Invalid year'
+    else:
+        months = get_months(year, filepath)
+    if month not in months:
+        return 'Invalid month'
+    else:
+        days = get_days(year, month, filepath)
+    if day not in days:
+        return 'Invalid day'
+    else:
+        times = get_times(year, month, day, filepath)
+    if time not in times:
+        return 'Invalid time'
+    
+    kappa = 287.053/1005
+    pressure = get_daywise_data(year, month, filepath)[(day,time)]['pressure']
+    temperature = get_daywise_data(year, month, filepath)[(day,time)]['temp']
+    pressure, temperature = interpolate_to_points(pressure, temperature, start=500, end=40, step=-5)
+    # print(pressure)
+    # print(temperature)
+
+    pressure_half_levels = ((pressure**kappa + np.roll(pressure**kappa,-1))/2)[:-1]
+    print(pressure_half_levels)
+    lapse_half_levels = ((temperature - np.roll(temperature, 1))[1:] / (pressure**kappa - np.roll(pressure**kappa, 1))[1:]) * ((pressure**kappa + np.roll(pressure**kappa, -1))[:-1] / (temperature + np.roll(temperature, -1))[:-1]) * (kappa * 9.80665/287.053)
+    #(pressure - np.roll(pressure, 1))[1:]
+    print(lapse_half_levels)
+    for i in range(len(lapse_half_levels)):
+        if lapse_half_levels[i] < 2:
+            if i < len(lapse_half_levels)-9:
+                mean_lapse = np.mean(lapse_half_levels[i:i+9])
+            else:
+                mean_lapse = np.mean(lapse_half_levels[i:])
+            if mean_lapse < 2:
+                j = i #500 - 5*i
+                break
+
+    tropopause = pressure_half_levels[j-1] + (pressure_half_levels[j] - pressure_half_levels[j-1])/(lapse_half_levels[j] - lapse_half_levels[j-1]) * (2 - lapse_half_levels[j-1])
+    tropopause = tropopause**(1/kappa)
+
+    return tropopause
+
+
+
+
+#pressure = get_daywise_data(2024, 7)[(31,0)]['pressure']
+#print(pressure)
+# gph = get_daywise_data(2024, 7)[(31,0)]['gph']
+# temp = get_daywise_data(2024, 7)[(31,0)]['temp']
+# gph, temp = interpolate_to_points(gph, temp, kind='linear', step=200)
+# gph, lapse, temp = lapse_rate(gph, temp)
+# tropopause = detect_tropopause(gph, lapse)
+
+
 seidel2006stationlist = [
     'ARM00087576', 'ASM00094120', 'ASM00094294', 'ASM00094610', 'ASM00094672', 
     'ASM00094998', 'AYM00089009', 'AYM00089050', 'AYM00089532', 'AYM00089542', 
@@ -371,10 +489,4 @@ seidel2006stationlist = [
     'USM00072520', 'USM00072645', 'USM00072694', 'USM00072712', 'USM00072747', 
     'USM00072768', 'USM00072776', 'USM00072797', 'USM00091165', 'USM00091285'
 ]
-
-plot_stations(station_list=seidel2006stationlist)
-# gph = get_daywise_data(2024, 7)[(31,0)]['gph']
-# temp = get_daywise_data(2024, 7)[(31,0)]['temp']
-# gph, temp = interpolate_to_points(gph, temp, kind='linear', step=200)
-# gph, lapse, temp = lapse_rate(gph, temp)
-# tropopause = detect_tropopause(gph, lapse)
+#plot_stations(station_list=seidel2006stationlist)
