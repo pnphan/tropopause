@@ -274,9 +274,11 @@ def plot_all_stations(station_data='igra2-station-list.txt'):
     
     lat = []
     lon = []
+    ids = []
     for station in stations:
         try:
             # Extract latitude and longitude
+            ids.append(station[:11])
             latitude = float(station[12:20].strip())
             longitude = float(station[21:30].strip())
             
@@ -321,6 +323,7 @@ def plot_all_stations(station_data='igra2-station-list.txt'):
     plt.title("Station Locations", fontsize=14)
     plt.legend(loc="lower left")
     plt.show()
+    return ids
 
 
 def plot_stations(station_list=['AEM00041217', 'ACM00078861'], station_data='igra2-station-list.txt'):
@@ -390,7 +393,21 @@ def plot_stations(station_list=['AEM00041217', 'ACM00078861'], station_data='igr
     plt.legend(loc="lower left")
     plt.show()
 
-import numpy as np
+
+def seek_stations():
+    id_list = plot_all_stations()
+    good_stations = []
+    for id in id_list:
+        available_years = get_years(filepath=f'/media/peter/easystore/igra2-extracted/{id}-data.txt')
+        if np.max(available_years) >= 2016 and np.min(available_years) < 2000:
+            good_stations.append(id)
+            print(id)
+    return good_stations
+
+
+stations = seek_stations()
+print(len(stations))
+
 
 
 

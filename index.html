@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Station Map</title>
+  
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+5AB38K9W1g0Iihj3YncRoDEoyeiP1KXIIC2mucmY="
+    crossorigin=""
+  />
+  
+  <style>
+    /* Give the map some height so it's visible */
+    #map {
+      height: 600px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-qRyjk4Dwy+GZo6L37TZsZ5PjXoj7pbUKQGp7ulndtGI="
+  crossorigin=""
+></script>
+
+<script>
+  // --------------------------
+  // 1. Store station data here
+  // --------------------------
+  // Format: stationID, latitude, longitude, [other info...]
+  const stationData = [
+    ["ACM00078861", 17.1170, -61.7830],
+    ["AEM00041217", 24.4333,  54.6500],
+    ["AEXUAE05467", 25.2500,  55.3700],
+    ["AFM00040911", 36.7000,  67.2000],
+    ["AFM00040913", 36.6667,  68.9167],
+    ["AFM00040938", 34.2170,  62.2170],
+    ["AFM00040948", 34.5500,  69.2167],
+    ["AFM00040990", 31.5000,  65.8500]
+  ];
+
+  // --------------------------
+  // 2. Initialize Leaflet map
+  // --------------------------
+  // Centered at (0, 0) with a low zoom level so we see the whole globe.
+  const map = L.map('map').setView([0, 0], 2);
+
+  // Use OpenStreetMap tiles (free and easy to use)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, 
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // --------------------------
+  // 3. Place station markers
+  // --------------------------
+  stationData.forEach(station => {
+    const stationID = station[0];
+    const lat       = station[1];
+    const lng       = station[2];
+
+    // Create a marker at the station's lat/lng
+    const marker = L.marker([lat, lng]).addTo(map);
+
+    // Attach a popup that shows the station ID when clicked
+    marker.bindPopup(`<b>Station ID:</b> ${stationID}`);
+  });
+
+</script>
+</body>
+</html>
