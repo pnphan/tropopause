@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IGRA Explorer</title>
+  
+  <!-- 1) Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""/>
+  
+  <style>
+    /* 2) Map needs a visible size */
+    #map {
+      height: 750px;
+      width: 50%;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- 3) Map container -->
+  <div id="map"></div>
+  
+  <!-- 4) Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+  
+  <!-- 5) Our script -->
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([0, 0], 2);
+    
+    // Add a tile layer (OpenStreetMap in this case)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const canvasRenderer = L.canvas({ padding: 0.5 });
+    const circleMarkers = L.featureGroup([], { renderer: canvasRenderer });
+    
+    // Fetch data from Python endpoint
+    fetch('/stations') 
+        .then(response => response.json())
+        .then(stations => {
+
+        
+        // stations.forEach(station => {
+        //     const marker = L.marker([station.lat, station.lon]).addTo(map);
+        //     marker.bindPopup(`<b>Station ID:</b> ${station.id}`);
+        // });
+        stations.forEach(station => {
+          const circle = L.circleMarker([station.lat, station.lon], {
+            radius: 4,
+            fillColor: 'blue',
+            fillOpacity: 0.8,
+            stroke: false
+          });
+          circle.bindPopup(`Station ID: ${station.id}`);
+          circleMarkers.addLayer(circle);
+        });
+
+        circleMarkers.addTo(map);
+    })
+    .catch(err => console.error('Error fetching stations:', err));
+  </script>
+
+</body>
+</html>
+

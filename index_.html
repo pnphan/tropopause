@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Leaflet Map</title>
+  
+  <!-- 1) Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""/>
+  
+  <style>
+    /* 2) Map needs a visible size */
+    #map {
+      height: 750px;
+      width: 50%;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- 3) Map container -->
+  <div id="map"></div>
+  
+  <!-- 4) Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+  
+  <!-- 5) Our script -->
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([0, 0], 2);
+    
+    // Add a tile layer (OpenStreetMap in this case)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+    
+    // Example stations
+    const stationData = [
+      ["ACM00078861", 17.1170, -61.7830],
+      ["AEM00041217", 24.4333, 54.6500],
+      ["AEXUAE05467", 25.2500, 55.3700],
+      ["AFM00040911", 36.7000, 67.2000],
+      ["AFM00040913", 36.6667, 68.9167],
+      ["AFM00040938", 34.2170, 62.2170],
+      ["AFM00040948", 34.5500, 69.2167],
+      ["AFM00040990", 31.5000, 65.8500]
+    ];
+    
+    // Loop through stations and add markers
+    stationData.forEach(([id, lat, lng]) => {
+      const marker = L.marker([lat, lng]).addTo(map);
+      marker.bindPopup(`Station: ${id}`);
+    });
+  </script>
+
+</body>
+</html>
+

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IGRA Explorer</title>
+  
+  <!-- 1) Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""/>
+  
+  <style>
+    /* Basic layout: two columns */
+    body {
+      display: flex;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      /* flex: 1; */
+      height: 75vh;
+      width: 75vh;
+      margin: 10vh auto; 
+      display: block;
+    }
+    #sidebar {
+      width: 75vh;
+      max-width: 75vh;
+      background-color: #f8f8f8;
+      padding: 1em;
+      font: 20pt Arial;
+      margin: 10vh auto; 
+      display: block;
+      overflow: auto;  /* if content gets large */
+    }
+    .sidebar-title {
+      font-weight: bold;
+      margin-bottom: 0.5em;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- 3) Map container -->
+  <div id="map"></div>
+
+  <div id="sidebar">
+    <div class="sidebar-title">Station Info</div>
+    <div id="station-info">Click a station to see details.</div>
+  </div>
+  
+  <!-- 4) Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+
+  <script src="https://unpkg.com/leaflet-graticule@0.0.1/Leaflet.Graticule.js"></script>
+
+  
+  <!-- 5) Our script -->
+  <script>
+
+
+
+    // Initialize map
+    const map = L.map('map', {
+    worldCopyJump: false,
+    maxBounds: [[-90, -180], [90, 180]],
+    maxBoundsViscosity: 1.0
+  }).setView([0, 0], 2);
+    
+    // Add a tile layer (OpenStreetMap in this case)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      noWrap: true,
+      bounds: [[-90, -180], [90, 180]],
+      // attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    L.latlngGraticule({
+      showLabels: true,
+      // labelPlacement: 'edge',  // place lat/lon labels near the edge
+      maxZoom: 19,
+      minZoom: 0,
+      color: '#000',
+      font: '16pt Verdana',
+      weight: 0.2,
+      zoomIntervals: [
+        {start: 0, end: 2, interval: 30},
+        {start: 3, end: 3, interval: 15},
+        {start: 4, end: 4, interval: 10},
+        {start: 5, end: 5, interval: 5},
+        {start: 6, end: 8, interval: 2},
+        {start: 9, end: 10, interval: 1}
+      ]
+    }).addTo(map);
+
+
+
+    const canvasRenderer = L.canvas({ padding: 0.5 });
+    const stationGroup = L.featureGroup(null, { renderer: canvasRenderer });
+    
+    // Fetch data from Python endpoint
+    fetch('/stations') 
+        .then(response => response.json())
+        .then(stations => {
+
+      
+        stations.forEach(station => {
+          const circle = L.circleMarker([station.lat, station.lon], {
+            radius: 4,
+            fillColor: 'blue',
+            fillOpacity: 1,
+            stroke: false
+          });
+          circle.on('click', () => {
+            // Build some HTML to display
+            const html = `
+              <p><strong>ID:</strong> ${station.id}</p>
+              <p><strong>Latitude:</strong> ${station.lat}</p>
+              <p><strong>Longitude:</strong> ${station.lon}</p>
+            `;
+            document.getElementById('station-info').innerHTML = html;
+          });
+          stationGroup.addLayer(circle);
+        });
+
+        stationGroup.addTo(map);
+    })
+    .catch(err => console.error('Error fetching stations:', err));
+  </script>
+
+</body>
+</html>
+

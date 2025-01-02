@@ -264,7 +264,28 @@ def detect_tropopause_zangl(tempgrad, gph, temp):
         else:
             continue
         
+
+def get_all_stations_flask(filepath='igra2-station-list.txt'):
+    # Read station data and extract latitude and longitude
+    with open(filepath, "r") as f:
+        stations = f.read().splitlines()[:-101]  # Remove trailing meta-info lines
+    
+    stationdata = []
+    for station in stations:
+        try:
+            # Extract latitude and longitude
+            latitude = float(station[12:20].strip())
+            longitude = float(station[21:30].strip())
             
+            # Ignore stations with invalid lat/lon (set to missing values in the file)
+            if latitude == -98.8888 or longitude == -998.8888:
+                continue
+
+            stationdata.append({'id': station[:11], 'lat': latitude, 'lon': longitude})
+        except ValueError:
+            print(f"Skipping invalid line: {station}")
+
+    return stationdata
             
 
 def plot_all_stations(station_data='igra2-station-list.txt'):
@@ -405,8 +426,7 @@ def seek_stations():
     return good_stations
 
 
-stations = seek_stations()
-print(len(stations))
+print(get_all_stations_flask())
 
 
 
