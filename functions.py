@@ -426,7 +426,122 @@ def seek_stations():
     return good_stations
 
 
-print(get_all_stations_flask())
+def parse_igra_station(station_id):
+    """
+    Parse an IGRA v2.2 station file of the form <station_id>-data.txt
+    and return the available years, months, days, and times in the format:
+
+    {
+        "years": [...],
+        "data": {
+            "YYYY": {
+                "MM": {
+                    "DD": ["HHZ", ...],
+                    ...
+                },
+                ...
+            },
+            ...
+        }
+    }
+    """
+
+    # Prepare the output structure
+    data_dict = {
+        "years": [],
+        "data": {}
+    }
+
+    # The IGRA v2.2 header record has fixed-column positions:
+    # HEADREC columns 1-1   (index 0)
+    # ID      columns 2-12  (index 1..11)
+    # YEAR    columns 14-17 (index 13..16)
+    # MONTH   columns 19-20 (index 18..19)
+    # DAY     columns 22-23 (index 21..22)
+    # HOUR    columns 25-26 (index 24..25)
+    # We will ignore the rest for collecting date/time info.
+
+    file_name = f"data/{station_id}-data.txt"
+
+    try:
+        with open(file_name, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.rstrip("\n")
+                # Only parse lines that start with '#'
+                if not line.startswith("#"):
+                    continue
+
+                # Extract the columns defined by IGRA
+                # Make sure each slice is large enough and handle any short lines gracefully.
+                year_str  = line[13:17].strip()
+                month_str = line[18:20].strip()
+                day_str   = line[21:23].strip()
+                hour_str  = line[24:26].strip()
+
+                # If any of these are missing or not digits, skip.
+                # (Sometimes lines can be malformed or short.)
+                if (not year_str.isdigit() or 
+                    not month_str.isdigit() or 
+                    not day_str.isdigit() or 
+                    not hour_str.isdigit()):
+                    continue
+
+                year  = int(year_str)
+                month = int(month_str)
+                day   = int(day_str)
+                hour  = int(hour_str)
+
+                # Hour can be 0..23 or 99 = missing
+                if hour == 99:
+                    # Skip missing hour
+                    continue
+
+                # Convert to strings with zero padding if needed
+                year_s  = str(year)
+                month_s = f"{month:02d}"
+                day_s   = f"{day:02d}"
+                hour_s  = f"{hour:02d}Z"
+
+                # Insert into data structure
+                if year_s not in data_dict["data"]:
+                    data_dict["data"][year_s] = {}
+                if month_s not in data_dict["data"][year_s]:
+                    data_dict["data"][year_s][month_s] = {}
+                if day_s not in data_dict["data"][year_s][month_s]:
+                    data_dict["data"][year_s][month_s][day_s] = []
+
+                # Append the hour if not already present
+                if hour_s not in data_dict["data"][year_s][month_s][day_s]:
+                    data_dict["data"][year_s][month_s][day_s].append(hour_s)
+
+        # Now fill the "years" list. Sort them numerically.
+        # The keys in data_dict["data"] are strings, so convert to int for sorting.
+        sorted_years = sorted(int(y) for y in data_dict["data"].keys())
+        data_dict["years"] = sorted_years
+
+        # Convert them back to strings if you want the top-level "years" 
+        # to be integers or strings. The example shows them as integers, 
+        # so we can just store them as int.
+        # data_dict["years"] = sorted_years
+
+        return data_dict
+
+    except FileNotFoundError:
+        print(f"File not found: {file_name}")
+        return data_dict
+    except Exception as e:
+        print(f"Error reading/parsing {file_name}: {e}")
+        return data_dict
+
+
+if __name__ == "__main__":
+    # Example usage:
+    station_id_example = "RSM00023955"
+    output = parse_igra_station(station_id_example)
+
+    import json
+    print(json.dumps(output, indent=2))
+
 
 
 
@@ -441,26 +556,26 @@ print(get_all_stations_flask())
 # tropopause = detect_tropopause(gph, lapse)
 
 
-seidel2006stationlist = [
-    'ARM00087576', 'ASM00094120', 'ASM00094294', 'ASM00094610', 'ASM00094672', 
-    'ASM00094998', 'AYM00089009', 'AYM00089050', 'AYM00089532', 'AYM00089542', 
-    'AYM00089564', 'AYM00089664', 'BDM00078016', 'BPM00091517', 'BRM00082332', 
-    'BRM00083746', 'CAM00071072', 'CAM00071082', 'CAM00071801', 'CAM00071836', 
-    'CAM00071926', 'CHM00051709', 'CHM00052681', 'CIM00085442', 'CIM00085469', 
-    'CIM00085799', 'COM00080222', 'FIM00002836', 'FJM00091680', 'FMM00091334', 
-    'FPM00091938', 'FSM00061996', 'GIM00008495', 'GLM00004360', 'GMM00010868', 
-    'HKM00045004', 'ICM00004018', 'IOM00061967', 'ISM00040179', 'IVM00065578', 
-    'JAM00047401', 'JAM00047827', 'JAM00047991', 'JNM00001001', 'KEM00063741', 
-    'LYM00062010', 'MAM00067083', 'NFM00094996', 'NGM00061052', 'NZM00093844', 
-    'NZM00093986', 'POM00008508', 'PSM00091408', 'RMM00091376', 'RQM00078526', 
-    'RSM00021504', 'RSM00021965', 'RSM00023415', 'RSM00023472', 'RSM00024266', 
-    'RSM00028698', 'RSM00030230', 'RSM00032540', 'RSM00034731', 'RSM00035121', 
-    'SAM00041024', 'SFM00068588', 'SFM00068816', 'SFM00068994', 'SGM00061641', 
-    'SHM00061902', 'SHM00068906', 'SNM00048698', 'SPM00060020', 'THM00048455', 
-    'TXM00038880', 'UKM00003005', 'USM00070026', 'USM00070273', 'USM00070308', 
-    'USM00070398', 'USM00072201', 'USM00072208', 'USM00072250', 'USM00072251', 
-    'USM00072293', 'USM00072327', 'USM00072403', 'USM00072451', 'USM00072493', 
-    'USM00072520', 'USM00072645', 'USM00072694', 'USM00072712', 'USM00072747', 
-    'USM00072768', 'USM00072776', 'USM00072797', 'USM00091165', 'USM00091285'
-]
+# seidel2006stationlist = [
+#     'ARM00087576', 'ASM00094120', 'ASM00094294', 'ASM00094610', 'ASM00094672', 
+#     'ASM00094998', 'AYM00089009', 'AYM00089050', 'AYM00089532', 'AYM00089542', 
+#     'AYM00089564', 'AYM00089664', 'BDM00078016', 'BPM00091517', 'BRM00082332', 
+#     'BRM00083746', 'CAM00071072', 'CAM00071082', 'CAM00071801', 'CAM00071836', 
+#     'CAM00071926', 'CHM00051709', 'CHM00052681', 'CIM00085442', 'CIM00085469', 
+#     'CIM00085799', 'COM00080222', 'FIM00002836', 'FJM00091680', 'FMM00091334', 
+#     'FPM00091938', 'FSM00061996', 'GIM00008495', 'GLM00004360', 'GMM00010868', 
+#     'HKM00045004', 'ICM00004018', 'IOM00061967', 'ISM00040179', 'IVM00065578', 
+#     'JAM00047401', 'JAM00047827', 'JAM00047991', 'JNM00001001', 'KEM00063741', 
+#     'LYM00062010', 'MAM00067083', 'NFM00094996', 'NGM00061052', 'NZM00093844', 
+#     'NZM00093986', 'POM00008508', 'PSM00091408', 'RMM00091376', 'RQM00078526', 
+#     'RSM00021504', 'RSM00021965', 'RSM00023415', 'RSM00023472', 'RSM00024266', 
+#     'RSM00028698', 'RSM00030230', 'RSM00032540', 'RSM00034731', 'RSM00035121', 
+#     'SAM00041024', 'SFM00068588', 'SFM00068816', 'SFM00068994', 'SGM00061641', 
+#     'SHM00061902', 'SHM00068906', 'SNM00048698', 'SPM00060020', 'THM00048455', 
+#     'TXM00038880', 'UKM00003005', 'USM00070026', 'USM00070273', 'USM00070308', 
+#     'USM00070398', 'USM00072201', 'USM00072208', 'USM00072250', 'USM00072251', 
+#     'USM00072293', 'USM00072327', 'USM00072403', 'USM00072451', 'USM00072493', 
+#     'USM00072520', 'USM00072645', 'USM00072694', 'USM00072712', 'USM00072747', 
+#     'USM00072768', 'USM00072776', 'USM00072797', 'USM00091165', 'USM00091285'
+# ]
 #plot_stations(station_list=seidel2006stationlist)

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IGRA Explorer</title>
+  
+  <!-- 1) Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  
+  <style>
+    body {
+      display: flex;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 75vh;
+      width: 75vh;
+      margin: 10vh auto; 
+      display: block;
+    }
+    #sidebar {
+      width: 75vh;
+      height: 100vh;
+      max-width: 75vh;
+      background-color: #f8f8f8;
+      padding: 1em;
+      font: 16pt Arial;
+      margin: 10vh auto; 
+      display: block;
+      overflow: auto;
+    }
+    .sidebar-title {
+      font-weight: bold;
+      margin-bottom: 0.5em;
+    }
+
+    /* Calendar styles */
+    #station-info {
+      text-align: center;
+    }
+    #calendar-nav {
+      margin-bottom: 1em;
+      text-align: center;
+    }
+    #calendar-nav button {
+      font-size: 14pt;
+      margin: 0 0.5em;
+    }
+    #calendar-table {
+      border-collapse: collapse;
+      width: 50%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #calendar-table th,
+    #calendar-table td {
+      border: 1px solid #ccc;
+      text-align: center;
+      /* vertical-align: top; */
+      padding: 5px;
+    }
+    #calendar-table .no-availability {
+      color: #aaa;
+    }
+    #calendar-table .day-cell {
+      height: 20px;
+      width: 80px;
+      white-space: nowrap;
+    }
+    #graph-container {
+      /* Add top margin to create space between calendar and graph */
+      margin-top: 30px;
+
+      /* Center content (like an <img>) horizontally */
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- 3) Map container -->
+  <div id="map"></div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-title">IGRA Explorer</div>
+    <div id="station-info">
+      <p><strong>ID:</strong> <span id="station-id"></span><strong> Latitude:</strong> <span id="station-lat"></span><strong> Longitude:</strong> <span id="station-lon"></span></p>
+      <div id="calendar-container">
+        <div id="calendar-nav">
+          <button id="prev-btn" onclick="prevMonth()">&laquo; Prev</button>
+      
+          <select id="calendar-year" style="width: 150px; height: 30px; font-size: 16px;" onchange="onCalendarChange()"></select>
+          <select id="calendar-month" style="width: 150px; height: 30px; font-size: 16px;" onchange="onCalendarChange()"></select>
+      
+          <button id="next-btn" onclick="nextMonth()">Next &raquo;</button>
+        </div>
+      
+        <div id="calendar-table-container"></div>
+      </div>
+
+      <div id="graph-container"></div>
+    </div>
+    <!-- We’ll place calendar UI inside station-info dynamically -->
+  </div>
+  
+  <!-- 4) Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://unpkg.com/leaflet-graticule@0.0.1/Leaflet.Graticule.js"></script>
+
+  <!-- 5) Our script -->
+  <script>
+    // Initialize map
+    const map = L.map('map', {
+      worldCopyJump: false,
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 1.0
+    }).setView([0, 0], 2);
+    
+    // Add a tile layer (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      noWrap: true,
+      bounds: [[-90, -180], [90, 180]]
+    }).addTo(map);
+
+    // Add graticule
+    L.latlngGraticule({
+      showLabels: true,
+      maxZoom: 19,
+      minZoom: 0,
+      color: '#000',
+      font: '16pt Verdana',
+      weight: 0.2,
+      zoomIntervals: [
+        {start: 0, end: 2, interval: 30},
+        {start: 3, end: 3, interval: 15},
+        {start: 4, end: 4, interval: 10},
+        {start: 5, end: 5, interval: 5},
+        {start: 6, end: 8, interval: 2},
+        {start: 9, end: 10, interval: 1}
+      ]
+    }).addTo(map);
+
+    const canvasRenderer = L.canvas({ padding: 0.5 });
+    const stationGroup = L.featureGroup(null, { renderer: canvasRenderer });
+
+    // Fetch stations from Python endpoint
+    fetch('/stations') 
+      .then(response => response.json())
+      .then(stations => {
+        stations.forEach(station => {
+          const circle = L.circleMarker([station.lat, station.lon], {
+            radius: 4,
+            fillColor: 'blue',
+            fillOpacity: 1,
+            stroke: false
+          });
+          
+          // On click, load station info + availability
+          circle.on('click', () => {
+            currentStationId = station.id;
+
+            document.getElementById('station-id').textContent = station.id;
+            document.getElementById('station-lat').textContent = station.lat;
+            document.getElementById('station-lon').textContent = station.lon;
+
+            // Now fetch the calendar data
+            fetchAvailability(station.id);
+          });
+          
+          stationGroup.addLayer(circle);
+        });
+        stationGroup.addTo(map);
+      })
+      .catch(err => console.error('Error fetching stations:', err));
+
+    // Global variables to track the station's availability + current displayed month
+    let stationAvailabilityData = null;   // will store the JSON from /availability/<station_id>
+    let currentYear = null;
+    let currentMonth = null; // 1-based for convenience
+    let currentStationId = null;
+
+    // Fetch availability from the server
+    function fetchAvailability(stationId) {
+      fetch(`/availability/${stationId}`)
+        .then(response => response.json())
+        .then(data => {
+          stationAvailabilityData = data;
+          // Pick some initial month/year to display
+          // e.g. if the station has 1980 -> 2024, just start at the earliest
+          currentYear = data.years[0];
+          currentMonth = 1; // January
+
+          initializeCalendarControls();
+
+          // Render initial month
+          renderCalendar(currentYear, currentMonth);
+        })
+        .catch(err => console.error('Error fetching availability:', err));
+    }
+
+    function initializeCalendarControls() {
+      // Get references to the dropdowns
+      const yearSelect = document.getElementById('calendar-year');
+      const monthSelect = document.getElementById('calendar-month');
+
+      // Clear out any previous options (in case we're re-initializing)
+      yearSelect.innerHTML = '';
+      monthSelect.innerHTML = '';
+
+      // Populate the year dropdown with the station's available years
+      stationAvailabilityData.years.forEach((yr) => {
+        const option = document.createElement('option');
+        option.value = yr;
+        option.textContent = yr;
+        yearSelect.appendChild(option);
+      });
+      // Set the year dropdown to currentYear
+      yearSelect.value = currentYear;
+
+      // Populate the month dropdown (1–12)
+      months = ['None', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      for (let m = 1; m <= 12; m++) {
+        const option = document.createElement('option');
+        option.value = m;
+        option.textContent = months[m]; // or "Jan", "Feb", ...
+        monthSelect.appendChild(option);
+      }
+      // Set the month dropdown to currentMonth
+      monthSelect.value = currentMonth;
+    }
+
+    // function onCalendarChange() {
+    //   // Grab the selected year/month from the dropdowns
+    //   const yearSelect = document.getElementById('calendar-year');
+    //   const monthSelect = document.getElementById('calendar-month');
+
+    //   currentYear = parseInt(yearSelect.value, 10);
+    //   currentMonth = parseInt(monthSelect.value, 10);
+
+    //   // Render the calendar for the new selection
+    //   renderCalendar(currentYear, currentMonth);
+    // }
+
+    function onCalendarChange() {
+      // read the new values
+      currentYear = parseInt(document.getElementById('calendar-year').value, 10);
+      currentMonth = parseInt(document.getElementById('calendar-month').value, 10);
+
+      // re-render the calendar
+      renderCalendar(currentYear, currentMonth);
+    }
+
+    // Renders the calendar for a given year/month
+    function renderCalendar(year, month) {
+      if (!stationAvailabilityData) return;
+      // Build basic UI: navigation + table
+      const calendarHTML = `
+        <table id="calendar-table">
+          <thead>
+            <tr>
+              <th>Sun</th><th>Mon</th><th>Tue</th>
+              <th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildCalendarBody(year, month)}
+          </tbody>
+        </table>
+      `;
+      const tableContainer = document.getElementById('calendar-table-container');
+      tableContainer.innerHTML = calendarHTML;
+
+      document.getElementById('calendar-year').value = year;
+      document.getElementById('calendar-month').value = month;
+      // const calendarContainer = document.getElementById('calendar-container');
+      // calendarContainer.innerHTML = calendarHTML;
+    }
+
+    // Builds the <tbody> HTML for the calendar
+    function buildCalendarBody(year, month) {
+      // JS months are 0-based in Date, so do some conversions
+      // But we'll keep 'month' as 1-based for readability
+      const firstDayOfMonth = new Date(year, month - 1, 1).getDay(); // 0=Sunday,1=Monday,...
+      const numDaysInMonth = new Date(year, month, 0).getDate();      // tricky, but works for last day
+
+      // We might have availability in stationAvailabilityData["data"][year][month][day]
+      // but must handle if data[year] or data[year][month] doesn't exist
+      const monthlyData = (stationAvailabilityData.data[year] || {})[String(month).padStart(2, '0')] || {};
+
+      let htmlRows = '';
+      let dayCounter = 1;
+      let currentWeek = '<tr>';
+
+      // Fill initial empty cells before firstDayOfMonth
+      for (let i = 0; i < firstDayOfMonth; i++) {
+        currentWeek += '<td></td>';
+      }
+
+      // Fill the days of the month
+      for (let d = 1; d <= numDaysInMonth; d++) {
+        // If we've reached Sunday again, close out the row
+        const dayOfWeek = new Date(year, month - 1, d).getDay();
+
+        // Gather times
+        const dayKey = String(d).padStart(2, '0');  // e.g. "01", "02"
+        const times = monthlyData[dayKey] || [];
+
+        // const cellContent = times.length > 0
+        //   ? times.join('<br>')
+        //   : '<span class="no-availability">—</span>';
+
+        let cellContent = '';
+        if (times.length > 0) {
+          cellContent = times.map(t => {
+            // Wrap each time in a button or link
+            return `<button type="button" onclick="showGraph('${currentStationId}', ${year}, ${month}, ${d}, '${t}');">${t}</button>`;
+          }).join(' ');
+        } else {
+          cellContent = '<span class="no-availability">—</span>';
+        }
+
+        currentWeek += `
+          <td class="day-cell">
+            <strong>${d}</strong><br>
+            ${cellContent}
+          </td>
+        `;
+
+        // If Saturday, then close row and start a new one
+        if (dayOfWeek === 6) {
+          currentWeek += '</tr>';
+          htmlRows += currentWeek;
+          currentWeek = '<tr>';
+        }
+      }
+
+      // Fill any trailing cells (if the last day isn't Saturday)
+      const lastDayOfMonth = new Date(year, month - 1, numDaysInMonth).getDay();
+      for (let i = lastDayOfMonth; i < 6; i++) {
+        currentWeek += '<td></td>';
+      }
+      currentWeek += '</tr>';
+      htmlRows += currentWeek;
+
+      return htmlRows;
+    }
+
+    // Go to previous month
+    function prevMonth() {
+      if (!stationAvailabilityData) return;
+
+      // Decrement month
+      currentMonth--;
+      if (currentMonth < 1) {
+        // Move back a year if possible
+        currentYear--;
+        currentMonth = 12;
+      }
+      if (currentYear < stationAvailabilityData.years[0]) {
+        // Don’t go past earliest year
+        currentYear = stationAvailabilityData.years[0];
+        currentMonth = 1;
+      }
+      
+      // Re-render
+      // (You might want to replace or re-build only the calendar section,
+      //  so you don't keep stacking multiple calendars.)
+      renderCalendar(currentYear, currentMonth);
+    }
+
+    // Go to next month
+    function nextMonth() {
+      if (!stationAvailabilityData) return;
+
+      currentMonth++;
+      if (currentMonth > 12) {
+        currentYear++;
+        currentMonth = 1;
+      }
+      const maxYear = stationAvailabilityData.years[stationAvailabilityData.years.length - 1];
+      if (currentYear > maxYear) {
+        // Don’t go beyond latest year
+        currentYear = maxYear;
+        currentMonth = 12;
+      }
+      renderCalendar(currentYear, currentMonth);
+    }
+
+
+  function showGraph(stationId, year, month, day, time) {
+    // Build the query string with your parameters
+
+    
+    fetch(`/plot-graph/${stationId}split${year}split${month}split${day}split${time}`)
+      .then(response => response.blob())     // Get binary data as a Blob
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        document.getElementById('graph-container').innerHTML = `
+          <img src="${url}" alt="No Data Available" />
+        `;
+      })
+      .catch(err => console.error(err));
+  }
+
+  </script>
+</body>
+</html>
