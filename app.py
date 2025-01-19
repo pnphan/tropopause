@@ -1,5 +1,7 @@
 from flask import Flask, jsonify, send_file
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('agg')
 import io
 
 def get_station_data(filepath='igra2-station-list.txt'):
@@ -431,7 +433,7 @@ def plot_igra_sounding(input):
         return
 
     # Create the subplots
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(9, 5))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(7, 5))
 
     # Plot 1: Temperature vs Geopotential Height
     if temp_gph and gph_vals:

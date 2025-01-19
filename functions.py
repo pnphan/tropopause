@@ -122,7 +122,7 @@ def get_daywise_data(year, month, filepath='PFM00059981-data.txt'):
     :param filepath: Path to the IGRA sounding data file.
     :param year: The year to filter the data.
     :param month: The month to filter the data.
-    :return: A dictionary where each key is a day, and the value is a list of tuples
+    :return: A dictionary where each key is a tuple (day, time), and the value is a list of tuples
              (time, geopotential height list, pressure list, temperature list).
     """
     daywise_data = {}
