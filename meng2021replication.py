@@ -1,6 +1,7 @@
 from functions import get_station_list
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 from scipy.interpolate import interp1d
 
 station_list = ['GQM00091212', 'RQM00078526', 'USM00091285', 'USM00091165', 'HKM00045004', 'JAM00047991', 'USM00072201', 'JAM00047945',
@@ -288,12 +289,11 @@ def compute_all_tropopause(stationid):
     years = years[i:]
     tropopause_data = {}
     for year in years:
-        print(year)
         tropopause_data[year] = {}
         months = list(availability[year].keys())
         for month in months:
             tropopause_data[year][month] = {}
-            data_month = get_daywise_data(int(year), int(month), 'JAM00047991')
+            data_month = get_daywise_data(int(year), int(month), stationid)
             days_times = list(data_month.keys())
             for day_time in days_times:
                 gph = data_month[day_time]['gph']
@@ -308,7 +308,114 @@ def compute_all_tropopause(stationid):
     return tropopause_data
     
 
-print(compute_all_tropopause('JAM00047991'))
+def compute_all_tropopause_all_stations(station_list=station_list):
+    for station in station_list:
+        data = compute_all_tropopause(station)
+        with open(f"tropopauses/{station}.pkl", "wb") as file:
+            pickle.dump(data, file)
+        print(station)
+
+
+def compute_standard_deviation(station_id):
+    with open(f"tropopauses/{station_id}.pkl", "rb") as file:
+        loaded_data = pickle.load(file)
+
+    samples = []
+    for year in list(loaded_data.keys()):
+        months = list(loaded_data[year].keys())
+        for month in months:
+            days_times = list(loaded_data[year][month].keys())
+            for day_time in days_times:
+                samples.append(loaded_data[year][month][day_time])
+    return np.std(samples), np.mean(samples), samples
+
+
+def tuples_to_dict(tuples_list):
+    result_dict = {}
+    for key, value in tuples_list:
+        if key not in result_dict:
+            result_dict[key] = []
+        result_dict[key].append(value)
+    return result_dict
+
+
+def find_pair_in_ranges(numbers, range1, range2, range3):
+    """
+    Finds a pair of numbers where one is in range1 and the other in range2.
+
+    Args:
+        numbers (list): List of numbers to search.
+        range1 (tuple): A tuple (min1, max1) defining the first range.
+        range2 (tuple): A tuple (min2, max2) defining the second range.
+
+    Returns:
+        tuple: A pair of numbers (num1, num2) if found, otherwise None.
+    """
+    in_range1 = [num for num in numbers if range1[0] <= num <= range1[1]]
+    in_range2 = [num for num in numbers if range2[0] <= num <= range2[1] or range3[0] <= num <= range3[1]]
+
+    for num1 in in_range1:
+        for num2 in in_range2:
+            if num1 != num2:  # Ensure they are not the same number
+                return (num1, num2)
+
+    return None
+
+def compute_daily_mean(station_id):
+    with open(f"tropopauses/{station_id}.pkl", "rb") as file:
+        data = pickle.load(file)
+    std, mean, samples = compute_standard_deviation(station_id)
+
+    years = list(data.keys())
+    updated_data = {}
+    for year in years:
+        updated_data[year] = {}
+        months = list(data[year].keys())
+        for month in months:
+            updated_data[year][month] = {}
+            days_times = list(data[year][month].keys())
+            days_times = tuples_to_dict(days_times)
+            for day in list(days_times.keys()):
+                times = find_pair_in_ranges(days_times[day], (9, 15), (21, 23), (0, 3))
+                if times != None:
+                    tropopause_time1 = data[year][month][(day, times[0])]
+                    tropopause_time2 = data[year][month][(day, times[1])]
+                    if abs(tropopause_time1 - mean) > 2*std or abs(tropopause_time2 - mean) > 2*std:
+                        continue 
+                    else:
+                        updated_data[year][month][day] = (tropopause_time1 + tropopause_time2)/2
+
+    return updated_data
+
+
+def compute_monthly_mean(station_id):
+    daily_means = compute_daily_mean(station_id)
+    updated_data = {}
+    for year in list(daily_means.keys()):
+        updated_data[year] = {}
+        for month in list(daily_means[year].keys()):
+            if len(list(daily_means[year][month].keys())) < 15:
+                continue
+            else:
+                updated_data[year][month] = np.mean(list(daily_means[year][month].values()))
+    return updated_data
+
+
+
+print(compute_monthly_mean('GQM00091212'))
+    
+
+
+# std, mean, samples = compute_standard_deviation('GQM00091212')
+# print(std)
+# print(mean)
+# print(len(samples))
+# ign = []
+# for i in samples:
+#     if abs(i - mean) > 2*std:
+#         ign.append(i)
+# print(len(ign))
+
 
 
 # data = get_daywise_data(2016, 6, 'JAM00047991')[(2,0)]
@@ -361,3 +468,23 @@ print(compute_all_tropopause('JAM00047991'))
 # ]
 
 # duplicates = [] # SPM00008001, UKM00003808, NOM00001415, FIM00002836, GLM00004220 
+
+
+
+##### GQM00091212
+# RQM00078526
+# USM00091285
+# USM00091165
+# HKM00045004
+# JAM00047991
+# USM00072201
+# JAM00047945
+# USM00072250
+# JAM00047971
+# USM00072210
+# USM00072261
+# USM00072240
+# CHM00058457
+# JAM00047827
+# USM00072364
+# CHM00058238
