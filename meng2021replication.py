@@ -385,6 +385,9 @@ def compute_daily_mean(station_id):
                     else:
                         updated_data[year][month][day] = (tropopause_time1 + tropopause_time2)/2
 
+    with open(f"daily_means/{station_id}.pkl", "wb") as file:
+        pickle.dump(data, file)
+
     return updated_data
 
 
@@ -399,6 +402,54 @@ def compute_monthly_mean(station_id):
             else:
                 updated_data[year][month] = np.mean(list(daily_means[year][month].values()))
     return updated_data
+
+
+def compute_monthly_mean_all_stations(station_list):
+    for station in station_list:
+        data = compute_monthly_mean(station)
+        with open(f"monthly_means/{station}.pkl", "wb") as file:
+            pickle.dump(data, file)
+        print(station)
+
+
+def plot_monthly_mean(station_id):
+    data = compute_monthly_mean(station_id)
+    
+    # Define the range of years and months
+    years = range(1980, 2026)
+    months = range(1, 13)
+    
+    # Prepare the data for plotting
+    x = []
+    y = []
+
+    for year, months_data in data.items():
+        for month, value in months_data.items():
+            x.append((int(year) - 1980) * 12 + (int(month) - 1))  # Map year and month to a continuous x-axis scale
+            y.append(value)
+
+    # Generate x-axis labels
+    x_ticks = [i * 12 for i in range(len(years))]
+    x_tick_labels = [str(year) for year in years]
+
+    # Plot the data
+    plt.figure(figsize=(15, 5))
+    plt.plot(x, y, marker='o', linestyle='-', label='Monthly Data')
+    plt.xticks(x_ticks, x_tick_labels, rotation=45)
+    plt.xlabel('Year (1980-2020)')
+    plt.ylabel('Value')
+    plt.title('Monthly Data from 1980 to 2020')
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+plot_monthly_mean('GQM00091212')
 
 
 
