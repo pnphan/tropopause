@@ -288,6 +288,11 @@ def detect_tropopause_both(gph, temp):
     gph_half = (gph[:-1] + gph[1:])/2
     temp_gradient = (temp[1:] - temp[:-1]) / (gph[1:] - gph[:-1])
 
+    first = -9999
+    second = -9999
+    temp_first = -9999
+    temp_second = -9999
+
     while tropopause_found == False:
         i = -9999
         for j in range(start_level, len(temp_gradient)):
@@ -295,7 +300,7 @@ def detect_tropopause_both(gph, temp):
                 i = j
                 break
         if i == -9999:
-            return -9999, -9999
+            return -9999, -9999, -9999, -9999
         
         zTP = gph_half[i-1] + ((0.2)/(temp_gradient[i] - temp_gradient[i-1])) * (-2 - temp_gradient[i])
         if zTP > gph[i]:
@@ -311,13 +316,16 @@ def detect_tropopause_both(gph, temp):
         
         if restart == True:
             if start_level == len(temp_gradient):
-                return -9999, -9999
+                return -9999, -9999, -9999, -9999
             else:
                 start_level = i+1
         else:
             tropopause_found = True
             search = True
             begin_search = i
+    
+
+    temp_first = tTP
 
     
     second_start_level = -9999
@@ -328,7 +336,8 @@ def detect_tropopause_both(gph, temp):
                 second_start_level = j
                 break
         if second_start_level == -9999:
-            return zTP, -9999
+            return zTP, -9999, temp_first, -9999
+
         
         while second_tropopause_found == False: 
             i = -9999
@@ -337,7 +346,7 @@ def detect_tropopause_both(gph, temp):
                     i = j
                     break
             if i == -9999:
-                return zTP, -9999
+                return zTP, -9999, temp_first, -9999
             secondzTP = gph_half[i-1] + ((0.2)/(temp_gradient[i] - temp_gradient[i-1])) * (-2 - temp_gradient[i])
             if secondzTP > gph[i]:
                 tTP = temp[i] + temp_gradient[i-1] * (secondzTP - gph[i])
@@ -352,11 +361,12 @@ def detect_tropopause_both(gph, temp):
             
             if restart == True:
                 if second_start_level == len(temp_gradient):
-                    return zTP, -9999
+                    return zTP, -9999, temp_first, -9999
                 else:
                     second_start_level = i+1
             else:
-                return zTP, secondzTP
+                return zTP, secondzTP, temp_first, tTP
+            
 
         
     
@@ -364,6 +374,7 @@ def detect_tropopause_both(gph, temp):
 def compute_all_tropopause(stationid):
     availability = get_availability(stationid)['data']
     years = list(availability.keys())
+    print(years)
     for j in range(len(years)):
         if int(years[j]) >= 1980:
             i=j
@@ -371,6 +382,7 @@ def compute_all_tropopause(stationid):
     years = years[i:]
     tropopause_data = {}
     for year in years:
+        print(year)
         tropopause_data[year] = {}
         months = list(availability[year].keys())
         for month in months:
@@ -392,7 +404,7 @@ def compute_all_tropopause(stationid):
 
 def compute_all_tropopause_both(stationid):
     availability = get_availability(stationid)['data']
-    years = list(availability.keys())[60:63]
+    years = list(availability.keys())
     for j in range(len(years)):
         if int(years[j]) >= 1980:
             i=j
@@ -400,16 +412,26 @@ def compute_all_tropopause_both(stationid):
     years = years[i:]
     tropopause_data = {}
     second_tropopause_data = {}
+    tropopause_temp_data = {}
+    second_tropopause_temp_data = {}
+    thickness_data = {}
+    temp_diff_data = {}
     for year in years:
-        counter = 0
-        counter_2 = 0
         print(year)
         tropopause_data[year] = {}
         second_tropopause_data[year] = {}
+        tropopause_temp_data[year] = {}
+        second_tropopause_temp_data[year] = {}
+        thickness_data[year] = {}
+        temp_diff_data[year] = {}
         months = list(availability[year].keys())
         for month in months:
             tropopause_data[year][month] = {}
             second_tropopause_data[year][month] = {}
+            tropopause_temp_data[year][month] = {}
+            second_tropopause_temp_data[year][month] = {}
+            thickness_data[year][month] = {}
+            temp_diff_data[year][month] = {}
             data_month = get_daywise_data(int(year), int(month), stationid)
             days_times = list(data_month.keys())
             for day_time in days_times:
@@ -418,18 +440,25 @@ def compute_all_tropopause_both(stationid):
                 if len(gph) == 0 or len(temp) == 0:
                     continue
                 gph, temp = interpolate_gph_temp(gph, temp, 'linear')
-                tropopause, second_tropopause = detect_tropopause_both(gph, temp)
+                tropopause, second_tropopause, tropopause_temp, second_tropopause_temp = detect_tropopause_both(gph, temp)
                 if tropopause != -9999 and abs(tropopause) <= 20:
                     tropopause_data[year][month][day_time] = tropopause
-                    counter += 1
-                if second_tropopause != -9999 and abs(second_tropopause) <= 20 and second_tropopause-tropopause > 0:
-                    second_tropopause_data[year][month][day_time] = second_tropopause
-                    counter_2 += 1
-        
-        print(counter)
-        print(counter_2)
+                    if tropopause_temp != -9999 and abs(tropopause_temp) <= 100:
+                        tropopause_temp_data[year][month][day_time] = tropopause_temp
+                    else:
+                        tropopause_temp_data[year][month][day_time] = -9999
+                    if second_tropopause != -9999 and abs(second_tropopause) <= 20 and second_tropopause-tropopause > 0:
+                        second_tropopause_data[year][month][day_time] = second_tropopause
+                        thickness_data[year][month][day_time] = second_tropopause - tropopause
+                        if second_tropopause_temp != -9999 and abs(second_tropopause_temp) <= 100:
+                            second_tropopause_temp_data[year][month][day_time] = second_tropopause_temp
+                            temp_diff_data[year][month][day_time] = second_tropopause_temp - tropopause_temp
+                        else:
+                            second_tropopause_temp_data[year][month][day_time] = -9999
+                            temp_diff_data[year][month][day_time] = -9999
 
-    return tropopause_data, second_tropopause_data
+        
+    return {'first' : tropopause_data, 'second' : second_tropopause_data, 'first_temp' : tropopause_temp_data, 'second_temp' : second_tropopause_temp_data, 'thickness' : thickness_data, 'temp_diff' : temp_diff_data}
     
 
 def compute_all_tropopause_all_stations(station_list=station_list):
@@ -438,6 +467,14 @@ def compute_all_tropopause_all_stations(station_list=station_list):
         with open(f"tropopauses/{station}.pkl", "wb") as file:
             pickle.dump(data, file)
         print(station)
+
+
+def compute_all_tropopause_all_stations_both(station_list=station_list):
+    for station in station_list:
+        print(station)
+        data = compute_all_tropopause_both(station)
+        with open(f"tropopauses/{station}.pkl", "wb") as file:
+            pickle.dump(data, file)
 
 
 def compute_standard_deviation(station_id):
@@ -571,8 +608,7 @@ def plot_monthly_mean(station_id):
 
 
 
-tropopause_data, second_tropopause_data = compute_all_tropopause_both('USM00091285')
-
+compute_all_tropopause_all_stations_both()
 
 
 # 1980, 03, (14, 12)
