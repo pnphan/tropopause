@@ -401,6 +401,8 @@ def compute_all_tropopause_both(stationid):
     tropopause_data = {}
     second_tropopause_data = {}
     for year in years:
+        counter = 0
+        counter_2 = 0
         print(year)
         tropopause_data[year] = {}
         second_tropopause_data[year] = {}
@@ -417,9 +419,15 @@ def compute_all_tropopause_both(stationid):
                     continue
                 gph, temp = interpolate_gph_temp(gph, temp, 'linear')
                 tropopause, second_tropopause = detect_tropopause_both(gph, temp)
-                if tropopause != -9999 and abs(tropopause) <= 20 and abs(second_tropopause) <= 20 and second_tropopause-tropopause > 0:
+                if tropopause != -9999 and abs(tropopause) <= 20:
                     tropopause_data[year][month][day_time] = tropopause
+                    counter += 1
+                if second_tropopause != -9999 and abs(second_tropopause) <= 20 and second_tropopause-tropopause > 0:
                     second_tropopause_data[year][month][day_time] = second_tropopause
+                    counter_2 += 1
+        
+        print(counter)
+        print(counter_2)
 
     return tropopause_data, second_tropopause_data
     
@@ -563,7 +571,7 @@ def plot_monthly_mean(station_id):
 
 
 
-tropopause_data, second_tropopause_data = compute_all_tropopause_both('GQM00091212')
+tropopause_data, second_tropopause_data = compute_all_tropopause_both('USM00091285')
 
 
 
