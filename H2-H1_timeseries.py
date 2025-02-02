@@ -218,33 +218,52 @@ def yearly_H2_H1_anomaly_global(station_list=station_list):
     y = y*1000
     return x, y
 
-
-
-
-x, y = monthly_H2_H1_anomaly_global_single_month('10')
-
-# Fit a linear model y = mx + b
+x, y = yearly_H2_H1_anomaly_global()
 m, b = np.polyfit(x, y, 1)  # 1 means linear fit
-
-# Generate fitted line
 x_fit = np.linspace(min(x), max(x), 100)  # Smooth line
 y_fit = m * x_fit + b
-
-# Plot data points
-plt.plot(x, y, color='red', label='Data')
-
-# Plot fitted line
-plt.plot(x_fit, y_fit, color='blue', label=f'Fit: y = {m:.2f}x + {b:.2f}')
-
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend()
+plt.plot(x_fit, y_fit, color='black', label=f'Fit: y = {m:.2f}x + {b:.2f}', lw=1)
+plt.plot(x, y, color='blue', label='Data', lw=1)
+plt.title(f'Yearly Northern Hemisphere Tropopause Mean Thickness Anomaly')
+plt.xlabel('Year')
+plt.ylabel('Thickness Anomaly (m)')
+plt.ylim((-700,700))
 plt.grid(True)
+plt.savefig(f'Yearly Northern Hemisphere Tropopause Mean Thickness Anomaly', dpi=1200)
 
-# Show plot
-plt.show()
+# import matplotlib
+# inputs = [('01', 'January'), ('02', 'February'), ('03', 'March'), ('04', 'April'), ('05', 'May'),
+#           ('06', 'June'), ('07', 'July'), ('07', 'August'), ('09', 'September'), ('10', 'October'),
+#           ('11', 'November'), ('12', 'December')]
+# for (i, j) in inputs:
+#     matplotlib.rc('font', family='Times New Roman')
+#     x, y = monthly_H2_H1_anomaly_global_single_month(f'{i}')
 
-# plot_values(x, y)
+#     # Fit a linear model y = mx + b
+#     m, b = np.polyfit(x, y*1000, 1)  # 1 means linear fit
+
+#     # Generate fitted line
+#     x_fit = np.linspace(min(x), max(x), 100)  # Smooth line
+#     y_fit = m * x_fit + b
+
+#     # Plot data points
+#     plt.plot(x, y*1000, color='blue', label='Data', lw=1)
+
+#     # Plot fitted line
+#     plt.plot(x_fit, y_fit, color='black', label=f'Fit: y = {m:.2f}x + {b:.2f}', lw=1)
+
+#     plt.xlabel('Year')
+#     plt.ylabel('Thickness Anomaly (m)')
+#     plt.title(f'Northern Hemisphere Tropopause Thickness Anomaly for {j}')
+#     plt.ylim((-700,700))
+
+#     plt.grid(True)
+
+
+#     # Show plot
+#     plt.savefig(f'Northern Hemisphere Tropopause Thickness Anomaly for {j}.png', dpi=1200)
+#     plt.clf()
+
 
 
 
