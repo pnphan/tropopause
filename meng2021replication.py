@@ -230,7 +230,7 @@ def plot_values(x_values, y_values):
         raise ValueError("x_values and y_values must have the same length.")
     
     plt.figure(figsize=(8, 6))
-    plt.plot(x_values, y_values, marker='o', linestyle='-', color='b')
+    plt.plot(x_values, y_values, linestyle='-', color='b') # marker='.'
     plt.xlabel('X Values')
     plt.ylabel('Y Values')
     plt.title('Plot of X vs. Y')
@@ -547,6 +547,8 @@ def compute_daily_mean(station_id):
                         continue 
                     else:
                         updated_data[year][month][day] = (tropopause_time1 + tropopause_time2)/2
+                else:
+                    updated_data[year][month][day] = data[year][month][(int(day), days_times[day][0])]
 
     with open(f"daily_means/{station_id}.pkl", "wb") as file:
         pickle.dump(data, file)
@@ -732,7 +734,6 @@ def compute_monthly_anomaly_all():
 
 
 
-compute_monthly_anomaly_all()
 
 
         

@@ -2,3 +2,13 @@ data/
 tropopauses/
 monthly_means/
 daily_means/
+yearly_means/
+H2_daily_means/
+H2_monthly_means/
+H2_yearly_means/
+H2-H1_daily_means/
+H2-H1_monthly_means/
+H2-H1_yearly_means/
+H2_temp_daily_means/
+H2_temp_monthly_means/
+H2_temp_yearly_means/
