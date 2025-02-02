@@ -481,6 +481,7 @@ def compute_standard_deviation(station_id):
     with open(f"tropopauses/{station_id}.pkl", "rb") as file:
         loaded_data = pickle.load(file)
 
+    loaded_data = loaded_data['first']
     samples = []
     for year in list(loaded_data.keys()):
         months = list(loaded_data[year].keys())
@@ -488,6 +489,7 @@ def compute_standard_deviation(station_id):
             days_times = list(loaded_data[year][month].keys())
             for day_time in days_times:
                 samples.append(loaded_data[year][month][day_time])
+
     return np.std(samples), np.mean(samples), samples
 
 
@@ -512,8 +514,8 @@ def find_pair_in_ranges(numbers, range1, range2, range3):
     Returns:
         tuple: A pair of numbers (num1, num2) if found, otherwise None.
     """
-    in_range1 = [num for num in numbers if range1[0] <= num <= range1[1]]
-    in_range2 = [num for num in numbers if range2[0] <= num <= range2[1] or range3[0] <= num <= range3[1]]
+    in_range1 = [int(num) for num in numbers if range1[0] <= int(num) <= range1[1]]
+    in_range2 = [int(num) for num in numbers if range2[0] <= int(num) <= range2[1] or range3[0] <= int(num) <= range3[1]]
 
     for num1 in in_range1:
         for num2 in in_range2:
@@ -526,7 +528,7 @@ def compute_daily_mean(station_id):
     with open(f"tropopauses/{station_id}.pkl", "rb") as file:
         data = pickle.load(file)
     std, mean, samples = compute_standard_deviation(station_id)
-
+    data = data['first']
     years = list(data.keys())
     updated_data = {}
     for year in years:
@@ -539,8 +541,8 @@ def compute_daily_mean(station_id):
             for day in list(days_times.keys()):
                 times = find_pair_in_ranges(days_times[day], (9, 15), (21, 23), (0, 3))
                 if times != None:
-                    tropopause_time1 = data[year][month][(day, times[0])]
-                    tropopause_time2 = data[year][month][(day, times[1])]
+                    tropopause_time1 = data[year][month][(int(day), times[0])]
+                    tropopause_time2 = data[year][month][(int(day), times[1])]
                     if abs(tropopause_time1 - mean) > 2*std or abs(tropopause_time2 - mean) > 2*std:
                         continue 
                     else:
@@ -561,11 +563,11 @@ def compute_monthly_mean(station_id):
             if len(list(daily_means[year][month].keys())) < 15:
                 continue
             else:
-                updated_data[year][month] = np.mean(list(daily_means[year][month].values()))
+                updated_data[year][month] = np.nanmean(list(daily_means[year][month].values()))
     return updated_data
 
 
-def compute_monthly_mean_all_stations(station_list):
+def compute_monthly_mean_all_stations(station_list=station_list):
     for station in station_list:
         data = compute_monthly_mean(station)
         with open(f"monthly_means/{station}.pkl", "wb") as file:
@@ -606,9 +608,139 @@ def plot_monthly_mean(station_id):
     plt.show()
 
 
+def compute_yearly_mean(stationid, year):
+    with open(f"monthly_means/{stationid}.pkl", "rb") as f:
+        data = pickle.load(f)
+    years = list(data.keys())
+    year = str(year)
+    if year in years:
+        return np.nanmean(list(data[year].values()))
+    else:
+        return -9999
 
 
-compute_all_tropopause_all_stations_both()
+def plot_yearly_mean(station_list=station_list):
+    y = []
+    x = []
+
+    for control_year in range(1980, 2025):
+        yearly_mean_all = []
+        for station in station_list:
+            yearly_mean = compute_yearly_mean(station, control_year)
+            if yearly_mean != -9999:
+                yearly_mean_all.append(yearly_mean)
+        y.append(np.nanmean(yearly_mean_all))
+        x.append(control_year)
+
+    plt.figure(figsize=(15, 5))
+    plt.plot(x, y, marker='o', linestyle='-', label='Monthly Data')
+    #plt.xticks(x_ticks, x_tick_labels, rotation=45)
+    plt.xlabel('Year (1980-2020)')
+    plt.ylabel('Value')
+    plt.title('Monthly Data from 1980 to 2020')
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return x, y
+
+
+def plot_year_anomaly():
+    x, y = plot_yearly_mean()
+
+    decadal_avg = np.nanmean(y)
+    y = y - decadal_avg
+    plt.figure(figsize=(15, 5))
+    plt.plot(x, y, marker='o', linestyle='-', label='Monthly Data')
+    #plt.xticks(x_ticks, x_tick_labels, rotation=45)
+    plt.xlabel('Year (1980-2020)')
+    plt.ylim((-2, 2))
+    plt.ylabel('Value')
+    plt.title('Monthly Data from 1980 to 2020')
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def compute_monthly_mean_all(station_list=station_list):
+    y = []
+    x=[]
+    counter = 0
+    # for control_year in range(1980, 2025):
+    #     print(control_year)
+    #     for control_month in [f'0{i}' for i in range(1, 10)] + ['10', '11', '12']:
+    #         month_data = []
+    #         for station in station_list:
+    #             with open(f"monthly_means/{station}.pkl", "rb") as f:
+    #                 data = pickle.load(f)
+    #             if str(control_year) in list(data.keys()):
+    #                 if str(control_month) in list(data[str(control_year)].keys()):
+    #                     month_data.append(data[str(control_year)][str(control_month)])
+    #         y.append(np.nanmean(month_data))
+    #         #x.append((int(control_year) - 1980) * 12 + (int(control_month) - 1))
+    #         counter+=1
+    #         x.append(counter)
+
+    control_month = '06'
+    for control_year in range(1980, 2025):
+        print(control_year)
+        month_data = []
+        for station in station_list:
+            with open(f"monthly_means/{station}.pkl", "rb") as f:
+                data = pickle.load(f)
+            if str(control_year) in list(data.keys()):
+                if str(control_month) in list(data[str(control_year)].keys()):
+                    month_data.append(data[str(control_year)][str(control_month)])
+        y.append(np.nanmean(month_data))
+        #x.append((int(control_year) - 1980) * 12 + (int(control_month) - 1))
+        counter+=1
+        x.append(counter)
+
+    # Plot the data
+    plt.figure(figsize=(15, 5))
+    plt.plot(x, y, marker='o', linestyle='-', label='Monthly Data')
+    #plt.xticks(x_ticks, x_tick_labels, rotation=45)
+    plt.xlabel('Year (1980-2020)')
+    plt.ylabel('Value')
+    plt.title('Monthly Data from 1980 to 2020')
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return x, y
+
+
+def compute_monthly_anomaly_all():
+    x, y = compute_monthly_mean_all()
+    avg = np.nanmean(y)
+    y = y - avg
+    plt.figure(figsize=(15, 5))
+    plt.plot(range(1980,2025), y, marker='.', linestyle='-', label='Monthly Data')
+    #plt.xticks(x_ticks, x_tick_labels, rotation=45)
+    plt.xlabel('Year (1980-2020)')
+    plt.ylim((-2, 2))
+    plt.ylabel('Value')
+    plt.title('Monthly Data from 1980 to 2020')
+    plt.grid(axis='x', linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+compute_monthly_anomaly_all()
+
+
+        
+
+
+
+
+
 
 
 # 1980, 03, (14, 12)
