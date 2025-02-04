@@ -83,6 +83,30 @@ def monthly_H2_mean_all_stations(station_list=station_list):
         print(station)
 
 
+def monthly_H2_mean_global(station_list=station_list):
+    """
+    Compute monthly global means for second tropopause height
+    
+    Returns 
+    x : months
+    y : global mean for the corresponding month
+    """
+    x = []
+    y = []
+    for year in range(1980, 2025):
+        for month in [f'0{i}' for i in range(1,10)] + ['10','11','12']:
+            current_month = []
+            for station in station_list:
+                with open(f"H2_monthly_means/{station}_H2_monthly_mean.pkl", "rb") as file:
+                    data = pickle.load(file)
+                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                    current_month.append(data[str(year)][month])
+            y.append(np.nanmean(current_month))
+            x.append((int(year) - 1980) * 12 + (int(month) - 1))
+
+    return x, y
+
+
 def yearly_H2_mean(station_id):
     """
     Compute and save yearly means for second tropopause height for a single station
@@ -146,11 +170,169 @@ def yearly_H2_anomaly_global(station_list=station_list):
     return x, y
 
 
+def monthly_H2_mean_global_single_month(month, station_list=station_list):
+    """
+    Compute yearly trend of global means for first tropopause height for a single month
+    
+    Returns 
+    x : years
+    y : global mean for the year
+    """
+    x = []
+    y = []
+    for year in range(1980, 2025):
+        current_year = []
+        for station in station_list:
+            with open(f"H1_monthly_means/{station}_H1_monthly_mean.pkl", "rb") as file:
+                data = pickle.load(file)
+            if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                current_year.append(data[str(year)][month])
+        y.append(np.nanmean(current_year))
+        x.append(year)
+
+    return x, y
 
 
-x, y = yearly_H2_anomaly_global()
-plot_values(x, y)
 
+
+# station_id = 'USM00091285'
+# with open(f"H2_monthly_means/{station_id}_H2_monthly_mean.pkl", "rb") as file:
+#     data = pickle.load(file)
+
+
+# print(data.keys())
+def H1_monthly_anomalies(station_list=station_list):
+    months = ['01','02','03','04','05','06','07','08','09','10','11','12']
+    monthly_means = {}
+    for month in months:
+        current_month = []
+        for year in range(1980,2024):
+            current_year = []
+            for station in station_list:
+                with open(f"H1_monthly_means/{station}_H1_monthly_mean.pkl", "rb") as file:
+                    data = pickle.load(file)
+                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                    current_year.append(data[str(year)][month])
+            current_month.append(np.nanmean(current_year))
+        monthly_means[month] = np.nanmean(current_month)
+
+
+    y = []
+    x = []
+    counter = 0
+    for year in range(1980,2024):
+        for month in months:
+            current_month = []
+            for station in station_list:
+                with open(f"H1_monthly_means/{station}_H1_monthly_mean.pkl", "rb") as file:
+                    data = pickle.load(file)
+                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                    current_month.append(data[str(year)][month])
+            y.append(np.nanmean(current_month) - monthly_means[month])
+            counter+=1 
+            x.append(counter)
+    years = range(1980,2025)
+
+    x_ticks = [i * 12 for i in range(len(years))]
+    x_tick_labels = [str(year) if year%5==0 else '' for year in years]
+    
+
+    # A = np.vstack([x, np.ones(len(x))]).T
+    # m, c = np.linalg.lstsq(A, y)[0]
+    # plt.plot(x, y)
+    # plt.plot(x, m*np.array(x) + c, 'r')
+    # plt.xticks(x_ticks, x_tick_labels, rotation=45)
+
+    # plt.xlabel('Year')
+    # plt.ylabel('Anomaly (km)')
+    # #plt.grid(True)
+    # plt.show()
+    return x, y
+
+def H2_monthly_anomalies(station_list=station_list):
+    months = ['01','02','03','04','05','06','07','08','09','10','11','12']
+    monthly_means = {}
+    for month in months:
+        current_month = []
+        for year in range(1980,2024):
+            current_year = []
+            for station in station_list:
+                with open(f"H2_monthly_means/{station}_H2_monthly_mean.pkl", "rb") as file:
+                    data = pickle.load(file)
+                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                    current_year.append(data[str(year)][month])
+            current_month.append(np.nanmean(current_year))
+        monthly_means[month] = np.nanmean(current_month)
+
+
+    y = []
+    x = []
+    counter = 0
+    for year in range(1980,2024):
+        for month in months:
+            current_month = []
+            for station in station_list:
+                with open(f"H2_monthly_means/{station}_H2_monthly_mean.pkl", "rb") as file:
+                    data = pickle.load(file)
+                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
+                    current_month.append(data[str(year)][month])
+            y.append(np.nanmean(current_month) - monthly_means[month])
+            counter+=1 
+            x.append(counter)
+    years = range(1980,2025)
+
+    x_ticks = [i * 12 for i in range(len(years))]
+    x_tick_labels = [str(year) if year%5==0 else '' for year in years]
+    
+
+    # A = np.vstack([x, np.ones(len(x))]).T
+    # m, c = np.linalg.lstsq(A, y)[0]
+    # plt.plot(x, y)
+    # plt.plot(x, m*np.array(x) + c, 'r')
+    # plt.xticks(x_ticks, x_tick_labels, rotation=45)
+
+    # plt.xlabel('Year')
+    # plt.ylabel('Anomaly (km)')
+    # #plt.grid(True)
+    # plt.show()
+    return x, y
+
+
+
+years = range(1980,2025)
+x, y = H1_monthly_anomalies()
+A = np.vstack([x, np.ones(len(x))]).T
+m, c = np.linalg.lstsq(A, y)[0]
+plt.plot(x, y, label='H1')
+plt.plot(x, m*np.array(x) + c, 'r')
+
+x1, y1 = H2_monthly_anomalies()
+A1 = np.vstack([x1, np.ones(len(x1))]).T
+m1, c1 = np.linalg.lstsq(A1, y1)[0]
+plt.plot(x1, y1, label = 'H2')
+plt.plot(x1, m1*np.array(x1) + c1, 'r')
+
+
+x_ticks = [i * 12 for i in range(len(years))]
+x_tick_labels = [str(year) if year%5==0 else '' for year in years]
+plt.xticks(x_ticks, x_tick_labels, rotation=45)
+
+plt.xlabel('Year')
+plt.ylabel('Anomaly (km)')
+#plt.grid(True)
+plt.legend()
+plt.show()
+
+    
+
+        
+
+        
+
+        
+
+
+                
 
 
         

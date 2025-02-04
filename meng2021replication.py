@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 from scipy.interpolate import interp1d
+import cartopy.crs as ccrs
+from geopy.distance import geodesic
 
 station_list = ['GQM00091212', 'RQM00078526', 'USM00091285', 'USM00091165', 'HKM00045004', 'JAM00047991', 'USM00072201', 'JAM00047945',
  'USM00072250', 'JAM00047971', 'USM00072210', 'USM00072261', 'USM00072240', 'CHM00058457', 'JAM00047827', 'USM00072364',
@@ -23,6 +25,25 @@ station_list = ['GQM00091212', 'RQM00078526', 'USM00091285', 'USM00091165', 'HKM
  'USM00070231', 'NOM00001241', 'CAM00071909', 'ICM00004018', 'USM00070200', 'RSM00022543', 'USM00070261', 'CAM00071043', 
  'CAM00071957', 'CAM00071081', 'CAM00071925', 'JNM00001001', 'USM00070026', 'SVM00001028', 'CAM00071924', 'CAM00071917', 
  'SPM00008001', 'UKM00003808', 'NOM00001415', 'FIM00002836', 'GLM00004220']
+
+def plot_all_stations(station_data='igra2-station-list.txt', station_list=station_list):
+    stations = open(station_data, "r").read().split("\n")[:-101]
+    lat = []
+    lon = []
+    for station in stations:
+        if station[:11] in station_list:
+            lat.append(float(station[11:20].replace(" ", "")))
+            lon.append(float(station[20:30].replace(" ", "")))
+
+    plt.figure(figsize=(10, 5)) 
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.stock_img()  # Adds a basic map background
+    plt.scatter(lon, lat, color="red", transform=ccrs.PlateCarree(), marker='.')
+    plt.title("Latitude-Longitude Points on Map")
+    plt.show()
+
+
+
 
 def get_daywise_data(year, month, station_id='PFM00059981'):
     """
@@ -733,14 +754,132 @@ def compute_monthly_anomaly_all():
 
 
 
+# station_id = 'GQM00091212'
+# availability = get_availability(station_id)['data']
+# years = list(availability.keys())
+# years_1980 = [i for i in years if int(i) >= 1980]
+# print(years_1980)
+
+def are_years_evenly_distributed(years):
+    """
+    Checks whether the given list of years is evenly distributed,
+    meaning no two consecutive years have a gap greater than 5 years.
+
+    :param years: List of integers representing years
+    :return: True if the years are evenly distributed, False otherwise
+
+    # Example usage:
+    years_list = [2000, 2005, 2010, 2016]
+    print(are_years_evenly_distributed(years_list))  # Output: True
+
+    years_list2 = [2000, 2005, 2012, 2020]
+    print(are_years_evenly_distributed(years_list2))  # Output: False
+    """
+    years = [int(year) for year in years]
+    if not years:
+        return False  # Empty list is not evenly distributed
+
+    years_sorted = sorted(years)
+    
+    for i in range(1, len(years_sorted)):
+        if years_sorted[i] - years_sorted[i - 1] > 5:
+            return False
+
+    return True
 
 
+def check_day(availability, station_id='PFM00059981'):
+    """
+    Reads the IGRA file and extracts geopotential height, pressure, and temperature
+    for each available day and time for a specific year and month.
+
+    :param filepath: Path to the IGRA sounding data file.
+    :param year: The year to filter the data.
+    :param month: The month to filter the data.
+    :return: A dictionary where each key is a day, and the value is a list of tuples
+             (time, geopotential height list, pressure list, temperature list).
+    """
+    years = list(availability.keys())
+    for year in years:
+        months = list(availability[year].keys())
+        for month in months:
+            daywise_data = get_daywise_data(year, month)
+            valid_tuples = []
+            for day_time in list(daywise_data.keys()):
+                gph = daywise_data[day_time]['gph']
+                if max(gph) < 20000:
+                    continue 
+                else:
+                    valid_tuples.append(day_time)
+
+            valid_days = tuples_to_dict(valid_tuples)
+            if len(list(valid_days).keys()) < 15:
+                return False
+            else:
+                return True
+
+            
 
         
 
+def filter_stations(station_data='igra2-station-list.txt'):
+    stations = open(station_data, "r").read().split("\n")[:-101]
+    good_stations = []
+    ids = [i[:11] for i in stations]
+    counter = 0
+    for id in ids:
+        availability = get_availability(id)['data']
+        years = list(availability.keys())
+        years_1980 = [i for i in years if int(i) >= 1980]
+        if len(years_1980) > 0:
+            min_year = int(years_1980[0])
+            max_year = int(years_1980[-1])
+        else:
+            continue
+        if abs(max_year - 2024) > 5 or abs(min_year - 1980) > 5 or are_years_evenly_distributed(years_1980)==False:
+            continue 
+
+        valid_years = []
+        for year in years_1980:
+            valid_months = []
+            months = list(availability[year].keys())
+
+            for month in months:
+                if len(list(availability[year][month].keys())) < 15:
+                    continue
+                else:
+                    valid_months.append(month)
+
+            if len(valid_months) < 9:
+                continue
+            else:
+                valid_years.append(year)
+
+        if len(valid_years) > 0:
+            min_year = int(valid_years[0])
+            max_year = int(valid_years[-1])
+        else:
+            continue
+        if abs(max_year - 2024) > 5 or abs(min_year - 1980) > 5 or are_years_evenly_distributed(valid_years)==False:
+            continue 
+        else:
+            good_stations.append(id)
+
+        counter+=1
+        print(counter)
+
+
+    
+    return good_stations
 
 
 
+# with open("filtered_stations.txt", "r") as file:
+#     lines = [line.strip() for line in file.readlines()]
+
+# print(lines)
+
+# plot_all_stations(station_list=lines)
 
 
 

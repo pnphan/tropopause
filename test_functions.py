@@ -98,7 +98,7 @@ def plot_igra_sounding(station_id, year, month, day, hour):
         Displays two matplotlib figures side by side (Temperature vs GPH, Temperature vs Pressure).
     """
 
-    file_name = f"{station_id}-data.txt"
+    file_name = f"data/{station_id}-data.txt"
 
     # Data structure to hold the (pressure, height, temperature) for the chosen sounding
     data_rows = []
