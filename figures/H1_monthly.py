@@ -7,33 +7,19 @@ from geopy.distance import geodesic
 from parameters import *
 
 
-def H2_monthly_anomalies(station_list=station_list):
-    monthly_means = {}
-    for month in months:
-        current_month = []
-        for year in range(1980,2025):
-            current_year = []
-            for station in station_list:
-                with open(f"./H2_monthly_means/{station}_H2_monthly_mean.pkl", "rb") as file:
-                    data = pickle.load(file)
-                if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
-                    current_year.append(data[str(year)][month])
-            current_month.append(np.nanmean(current_year))
-        monthly_means[month] = np.nanmean(current_month)
-
-
+def H1_monthly(station_list=station_list):
     y = []
     x = []
-    counter=1
+    counter=0
     for year in range(1980,2025):
         for month in months:
             current_month = []
             for station in station_list:
-                with open(f"./H2_monthly_means/{station}_H2_monthly_mean.pkl", "rb") as file:
+                with open(f"./H1_monthly_means/{station}_H1_monthly_mean.pkl", "rb") as file:
                     data = pickle.load(file)
                 if str(year) in list(data.keys()) and month in list(data[str(year)].keys()):
                     current_month.append(data[str(year)][month])
-            y.append(np.nanmean(current_month) - monthly_means[month])
+            y.append(np.nanmean(current_month))
             counter+=1
             x.append(counter)
     years = range(1980,2025)
@@ -52,14 +38,14 @@ def H2_monthly_anomalies(station_list=station_list):
     plt.xticks(x_ticks, x_tick_labels, rotation=45)
 
     plt.xlabel('Year')
-    plt.ylabel('Anomaly (km)')
+    plt.ylabel('Height (km)')
     #plt.grid(True)
     #plt.show()
-    plt.title('Monthly Anomaly of Second Tropopause Height')
-    plt.savefig('./figures/figures_output/H2_monthly_anomalies_v3.png', dpi=1200, bbox_inches='tight')
+    plt.title('Monthly First Tropopause Height 1980-2024')
+    plt.savefig('./figures/figures_output/H1_monthly.png', dpi=1200, bbox_inches='tight')
     return x, y, significant
 
 
 if __name__ == "__main__":
-    x, y, significant = H2_monthly_anomalies()
+    x, y, significant = H1_monthly()
     print(significant)

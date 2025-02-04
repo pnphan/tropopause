@@ -1,3 +1,5 @@
+import scipy.stats as stats
+
 station_list = ['GQM00091212', 'RQM00078526', 'USM00091285', 'USM00091165', 'HKM00045004', 'JAM00047991', 'USM00072201', 'JAM00047945',
  'USM00072250', 'JAM00047971', 'USM00072210', 'USM00072261', 'USM00072240', 'CHM00058457', 'JAM00047827', 'USM00072364',
  'CHM00058238', 'USM00072265', 'ISM00040179', 'USM00072274', 'USM00072235', 'USM00072293', 'USM00072208', 'CHM00057127', 
@@ -19,9 +21,21 @@ station_list = ['GQM00091212', 'RQM00078526', 'USM00091285', 'USM00091165', 'HKM
  'SPM00008001', 'UKM00003808', 'NOM00001415', 'FIM00002836', 'GLM00004220']
 
 months = ['01','02','03','04','05','06','07','08','09','10','11','12']
-months_dict = months = {'01' : 'January','02' : 'February',
+months_dict = {'01' : 'January','02' : 'February',
                         '03' : 'March', '04' : 'April',
                         '05' : 'May', '06' : 'June', 
                         '07' : 'July', '08' : 'August', 
                         '09' : 'September', '10' : 'October', 
                         '11' : 'November', '12' : 'December'}
+
+
+def t_test(domain, slope, intercept, r_value, p_value, std_err, alpha=0.05):
+    alpha = 0.05  # 95% confidence level
+    t_critical = stats.t.ppf(1 - alpha/2, df=len(domain)-2)  # t-value for 95% CI
+    slope_ci_lower = slope - t_critical * std_err
+    slope_ci_upper = slope + t_critical * std_err
+
+    # Determine statistical significance
+    significant = (slope_ci_lower > 0) or (slope_ci_upper < 0)
+
+    return slope_ci_lower, slope_ci_upper, significant
